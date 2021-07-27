@@ -1,0 +1,24 @@
+{
+  "name": "@synterra/spinal-rxjs",
+  "version": "0.0.6",
+  "description": "Rxjs spinal wrapper",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Synterra - Hugo Blanc",
+  "license": "ISC",
+  "dependencies": {
+    "rxjs": "^7.2.0",
+    "spinal-core-connectorjs": "git+https://github.com/spinalcom/spinal-core-connectorjs.git",
+    "spinal-core-connectorjs_type": "git+https://github.com/spinalcom/spinal-core-connectorjs_type.git",
+    "type-fest": "^1.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^16.3.2"
+  }
+}
