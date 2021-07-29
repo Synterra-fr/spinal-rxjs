@@ -35,12 +35,10 @@ export abstract class HubRepository<T extends spinal.Model, K> {
     );
   }
 
-  public find(
-    where: PartialDeep<K> | PartialDeep<K>[]
-  ): Observable<AbstractList<T>> {
+  public find(where: PartialDeep<K> | PartialDeep<K>[]): Observable<T[]> {
     return this.load().pipe(
       map((nodes: AbstractList<T>) => {
-        nodes = nodes.list.filter((d: T) => {
+        const models = nodes.list.filter((d: T) => {
           if (Array.isArray(where)) {
             for (const partial of where) {
               if (!this.validatePartial(partial, d)) {
@@ -51,9 +49,22 @@ export abstract class HubRepository<T extends spinal.Model, K> {
           } else {
             return this.validatePartial(where, d);
           }
-        }) as unknown as AbstractList<T>;
+        });
 
-        return nodes;
+        return models as unknown as T[];
+      })
+    );
+  }
+
+  public remove(models: spinal.Model | spinal.Model[]): Observable<void> {
+    return this.load().pipe(
+      map((root: AbstractList<T>) => {
+        if (!Array.isArray(models)) {
+          models = [models];
+        }
+        for (const issue of models) {
+          root.list.remove_ref(issue);
+        }
       })
     );
   }
