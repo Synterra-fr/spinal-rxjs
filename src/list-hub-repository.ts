@@ -1,29 +1,15 @@
 import { EMPTY, Observable } from "rxjs";
-import { catchError, map, mergeMap, skip, take } from "rxjs/operators";
+import { catchError, map } from "rxjs/operators";
 import { Bool, Lst, Model, Str, Val } from "spinal-core-connectorjs_type";
 import { PartialDeep } from "type-fest";
+import { AbstractHubRepository } from "./abstract-hub-repository";
 import { AbstractList } from "./abstract.list";
-import { SpinalWrapper } from "./spinal-wrapper";
 import { validatePartial } from "./utils/find.utils";
 
-export abstract class HubRepository<T extends spinal.Model, K> {
-  protected abstract readonly NODE_NAME: string;
-  protected abstract get emptyNode(): AbstractList<T>;
-
-  constructor(protected readonly spinal: SpinalWrapper) {}
-
-  public load(): Observable<AbstractList<T>> {
-    return this.loadOrCreate().pipe(take(1));
-  }
-
-  public watch(): Observable<AbstractList<T>> {
-    return this.loadOrCreate().pipe(skip(1));
-  }
-
-  public store(node = this.emptyNode) {
-    return this.spinal.store(node, this.NODE_NAME);
-  }
-
+export abstract class ListHubRepository<
+  T extends spinal.Model,
+  K
+> extends AbstractHubRepository<AbstractList<T>> {
   public findAll(): Observable<K[]> {
     return this.load().pipe(
       map((nodes: AbstractList<T>): K[] =>
@@ -123,19 +109,5 @@ export abstract class HubRepository<T extends spinal.Model, K> {
         }
       })
     );
-  }
-
-  private loadOrCreate(): Observable<AbstractList<T>> {
-    return this.spinalLoad().pipe(
-      catchError((error) => this.createAndLoad(error))
-    );
-  }
-
-  private spinalLoad() {
-    return this.spinal.load<T>(this.NODE_NAME);
-  }
-
-  private createAndLoad(error: any): Observable<AbstractList<T>> {
-    return this.store().pipe(mergeMap(() => this.spinalLoad()));
   }
 }

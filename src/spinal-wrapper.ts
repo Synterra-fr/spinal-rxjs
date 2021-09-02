@@ -1,6 +1,5 @@
 import { Observable } from "rxjs";
 import { spinalCore } from "spinal-core-connectorjs_type";
-import { AbstractList } from "./abstract.list";
 
 export class SpinalWrapper {
   protected conn: any;
@@ -18,7 +17,7 @@ export class SpinalWrapper {
   }
 
   public store<T extends spinal.Model>(
-    object: AbstractList<T>,
+    object: T,
     name: string
   ): Observable<void> {
     return new Observable<void>((observer) => {
@@ -35,14 +34,12 @@ export class SpinalWrapper {
     });
   }
 
-  public load<T extends spinal.Model>(
-    name: string
-  ): Observable<AbstractList<T>> {
-    return new Observable<AbstractList<T>>((observer) => {
+  public load<T extends spinal.Model>(name: string): Observable<T> {
+    return new Observable<T>((observer) => {
       spinalCore.load(
         this.conn,
         name,
-        (object: AbstractList<T>) => {
+        (object: T) => {
           if (!object) {
             observer.next();
             observer.complete();
