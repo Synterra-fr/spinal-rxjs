@@ -4,6 +4,7 @@ import { Bool, Lst, Model, Str, Val } from "spinal-core-connectorjs_type";
 import { PartialDeep } from "type-fest";
 import { AbstractList } from "./abstract.list";
 import { SpinalWrapper } from "./spinal-wrapper";
+import { validatePartial } from "./utils/find.utils";
 
 export abstract class HubRepository<T extends spinal.Model, K> {
   protected abstract readonly NODE_NAME: string;
@@ -20,7 +21,6 @@ export abstract class HubRepository<T extends spinal.Model, K> {
   }
 
   public store(node = this.emptyNode) {
-    console.log(this.spinal);
     return this.spinal.store(node, this.NODE_NAME);
   }
 
@@ -41,19 +41,75 @@ export abstract class HubRepository<T extends spinal.Model, K> {
         const models = nodes.list.filter((d: T) => {
           if (Array.isArray(where)) {
             for (const partial of where) {
-              if (!this.validatePartial(partial, d)) {
+              if (!validatePartial(partial, d)) {
                 return false;
               }
             }
             return true;
           } else {
-            return this.validatePartial(where, d);
+            return validatePartial(where, d);
           }
         });
 
         return models as unknown as T[];
       })
     );
+  }
+
+  public findChild(where: PartialDeep<K>) {
+    return this.load().pipe(
+      map((nodes: AbstractList<T>) => {
+        for (let i = 0; i < nodes.list.length; i++) {
+          const orderModel = nodes.list[i];
+          const matchingResult = this.findPartial(where, orderModel);
+          if (matchingResult) {
+            return matchingResult;
+          }
+        }
+        return;
+      })
+    );
+  }
+
+  private findPartial(
+    partial:
+      | PartialDeep<K>
+      | PartialDeep<K>[Extract<keyof PartialDeep<K>, string>],
+    root: spinal.Model
+  ) {
+    let isObjKeyValid = false;
+    for (const key in partial as any) {
+      if (Object.prototype.hasOwnProperty.call(partial, key)) {
+        const newRoot: any = root[key];
+        const newPartial = partial[key];
+        if (newRoot instanceof Lst) {
+          for (let i = 0; i < newRoot.length; i++) {
+            const childRoot = newRoot[i];
+            const matchingResult = this.findPartial(newPartial[0], childRoot);
+            if (matchingResult) {
+              return matchingResult;
+            }
+          }
+        } else if (
+          newRoot instanceof Val ||
+          newRoot instanceof Str ||
+          newRoot instanceof Bool
+        ) {
+          const nodeValue = newRoot?.get();
+          if (nodeValue !== newPartial) {
+            return;
+          }
+          isObjKeyValid = true;
+        } else if (newRoot instanceof Model) {
+          return this.findPartial(newPartial, newRoot as any);
+        } else {
+          throw new Error("We don't do that here");
+        }
+      }
+    }
+    if (isObjKeyValid) {
+      return root;
+    }
   }
 
   public remove(models: spinal.Model | spinal.Model[]): Observable<void> {
@@ -67,47 +123,6 @@ export abstract class HubRepository<T extends spinal.Model, K> {
         }
       })
     );
-  }
-
-  private validatePartial(partial: PartialDeep<K>, root: T): boolean {
-    for (const key in partial) {
-      if (Object.prototype.hasOwnProperty.call(partial, key)) {
-        if ((root[key] as any) instanceof Lst) {
-          const array = partial[key] as unknown as any[];
-          for (let i = 0; i < array.length; i++) {
-            const element = array[i];
-            let match = false;
-            for (let j = 0; j < root[key].length; j++) {
-              const nodeElement = root[key][j];
-              if (this.validatePartial(element, nodeElement)) {
-                match = true;
-                break;
-              }
-            }
-            if (!match) {
-              return false;
-            }
-          }
-          continue;
-        } else if (
-          (root[key] as any) instanceof Val ||
-          (root[key] as any) instanceof Str ||
-          (root[key] as any) instanceof Bool
-        ) {
-          const nodeValue = (root[key] as any)?.get();
-          if (nodeValue !== partial[key]) {
-            return false;
-          }
-        } else if ((root[key] as any) instanceof Model) {
-          if (!this.validatePartial(partial[key] as any, root[key] as any)) {
-            return false;
-          }
-        } else {
-          throw new Error("We don't do that here");
-        }
-      }
-    }
-    return true;
   }
 
   private loadOrCreate(): Observable<AbstractList<T>> {
